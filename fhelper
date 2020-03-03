@@ -1,0 +1,198 @@
+#!/usr/bin/env ruby
+# 
+#  Firewall Helper
+#  ----------------------------------------
+#  - App : iptables
+#  - Purpose : make iptables rule with easy option
+# 
+#  written by Drajat Hasan (drajathasan20@gmail.com)
+#  @license MIT
+
+# --------------------------- FUNCTION AREA --------------------------- #
+# Get parameter ater dash parameter
+def getParamAfter(_dash, _arg_after)
+    # Check before continue
+    if ( ! _arg_after.index(_dash)) 
+        puts "The #{_dash} parameter which you looking for isn't available"
+        exit
+    end
+    # set dash
+    _dash_index = _arg_after.index(_dash)
+    # set after dash
+    _after_dash_index = (_arg_after.index(_dash) + 1).abs
+    # set out
+    return _arg_after[_after_dash_index]
+end
+
+# Set Masquerade 
+def setMasquerade(_arg)
+    # set source
+    _source      = getParamAfter('-s', _arg)
+    # set destination
+    _destination = getParamAfter('-d', _arg)
+    # set out
+    return "-s #{_source} -d #{_destination} -j MASQUERADE"
+end
+
+# Set Reguler Chain
+def setReg(_arg)
+
+    # set protocol
+    _proto  = nil
+    if (_arg.index('-p'))
+        _proto  = "-p #{getParamAfter('-p', _arg)}"
+    end
+
+    # set source
+    _source = nil
+    if (_arg.index('-i'))
+        _source = "-i #{getParamAfter('-i', _arg)}"
+    else (_arg.index('-s'))
+        _source = "-s #{getParamAfter('-s', _arg)}"
+    end
+
+    # set destination
+    _destination = nil
+    if (_arg.index('-d'))
+        _destination = "-d #{getParamAfter('-d', _arg)}"
+    end
+
+    # set destination port
+    _destination_port = nil
+    if (_arg.index('-dp'))
+        _destination_port = "--dport #{getParamAfter('-dp', _arg)}"
+    end
+
+    # set jump
+    _jump = '-j ACCEPT'
+    if (_arg.index('-j'))
+        _jump = "-j #{getParamAfter('-j', _arg)}"
+    end
+
+    # set other jump
+    _other_after_jump = nil
+    if (_arg.index('-other'))
+        _other_after_jump = getParamAfter('-other', _arg)
+    end
+
+    # set out
+    return "#{_proto} #{_source} #{_destination} #{_destination_port} #{_jump} #{_other_after_jump}"
+end
+
+# flushing
+def setFlush(_chain, _table = '')
+    return "#{_table} -F #{_chain}"
+end
+
+# compile arg
+def compile_argv(option)
+    # set arg
+    _arg = ARGV
+    case option
+        # Help menu
+        when "-h"
+            puts "Fhelper v0.1.0"
+            puts "\n"
+            puts "usage:"
+            puts "\n"
+            puts "  fhelper [option] [basic argument]"
+            puts "\n"
+            puts "Options:"
+            puts "  --set-masq Create POSTROUTING MASQUERADE chain"
+            puts "  --set-in Create INPUT chain"
+            puts "  --set-out Create OUTUT chain"
+            puts "  --set-fwd Create FORWARD chain"
+            puts "  --set-route Create NAT Table chain POSTROUTING|PREROUTING|INPUT|OUTPUT"
+            exit
+        # Masquerade
+        when "--set-masq"
+            @options[:table]       = "-t nat -A"
+            @options[:chain]       = "POSTROUTING"
+            @options[:compile_act] = setMasquerade(_arg)
+        # Input
+        when "--set-in"
+            @options[:table]      = nil
+            @options[:chain]      = "-A INPUT"
+            @options[:compile_act] = setReg(_arg)
+        # Input
+        when "--set-out"
+            @options[:table]      = nil
+            @options[:chain]      = "-A OUTPUT"
+            @options[:compile_act] = setReg(_arg)
+        # Forward
+        when "--set-fwd"
+            @options[:table]      = nil
+            @options[:chain]      = "-A FORWARD"
+            @options[:compile_act] = setReg(_arg)
+        # Routing
+        when "--set-route"
+            @options[:table]      = '-t nat'
+            @options[:chain]      = "-A #{getParamAfter('-c')}"
+            @options[:compile_act] = setReg(_arg)
+        
+        # flush
+        when "--flush"
+            _table = ''
+            if (_arg.index('--table'))
+                _table = getParamAfter('--table', _arg)
+            end 
+            @options[:flushing] = setFlush(getParamAfter('--flush', _arg), _table)
+    end
+  end
+
+# Compile argument into main app argument
+def compile(_hash_opt)
+    app  = 'iptables'
+    _arg = ARGV 
+    # Run into system
+    if (@options[:flushing]) 
+        if (_arg.index('--debug'))
+            puts "Debugging Mode"
+            puts "---------------"
+            puts "\n"
+            puts "Your will run : "
+            puts "\n"
+            puts "#{app} #{@options[:flushing]}"
+            puts "\n"
+            exit
+        else
+            return "#{app} #{@options[:flushing]}"
+        end
+    else
+        if (_arg.index('--debug'))
+            puts "Debugging Mode"
+            puts "---------------"
+            puts "Your will run : "
+            puts "\n"
+            puts "#{app} #{_hash_opt[:table]} #{_hash_opt[:chain]} #{_hash_opt[:compile_act]}"
+            puts "\n"
+            exit
+        else 
+            return "#{app} #{_hash_opt[:table]} #{_hash_opt[:chain]} #{_hash_opt[:compile_act]}"
+        end
+    end
+end
+
+# Runing App
+def run(compiled_chain)
+    if (system(compiled_chain))
+        puts "Yeah, you made a some rule! Awesome."
+    end
+end
+
+# --------------------------- END OF FUNCTION --------------------------- #
+
+
+# --------------------------- INITIAL AREA --------------------------- #
+# Set blank options
+@options = {}
+# loop the argv
+ARGV.each { |option| compile_argv(option) }
+  
+# If you want to see about your rule
+if (ARGV.index('--print-rule'))
+    puts compile(@options)
+end
+
+#  Ok we run it!
+run(compile(@options))
