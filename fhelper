@@ -29,9 +29,12 @@ def setMasquerade(_arg)
     # set source
     _source      = getParamAfter('-s', _arg)
     # set destination
-    _destination = getParamAfter('-d', _arg)
+    _destination = ''
+    if (_arg.index('-d'))
+      _destination = "-d #{getParamAfter('-d', _arg)}"
+    end
     # set out
-    return "-s #{_source} -d #{_destination} -j MASQUERADE"
+    return "-s #{_source} #{_destination} -j MASQUERADE"
 end
 
 # Set Reguler Chain
