@@ -130,7 +130,7 @@ def compile_argv(option)
         # Routing
         when "--set-route"
             @options[:table]      = '-t nat'
-            @options[:chain]      = "-A #{getParamAfter('-c')}"
+            @options[:chain]      = "-A #{getParamAfter('-c', _arg)}"
             @options[:compile_act] = setReg(_arg)
         
         # flush
